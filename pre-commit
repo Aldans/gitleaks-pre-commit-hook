@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# ------------------------------------------------------------------
+# Git Pre-Commit Hook check sensitivity data in local repo
+# for checking use 'Gitleaks' https://github.com/gitleaks/gitleaks 
+# 
+# script automatically check OS (Linux or MacOS) and install if  
+# gitleaks is not installed
+#
+# if was finded secret data commit will be rejected
+# 
+# Requirement:
+#  - enable gitleaks in git config:
+#    `git config hooks.gitleaks.enable true`
+#    
+#  - move this script to your repo in .git/hooks folder, file name
+#    must be `pre-commit`
+#    
+#  - add permission to execute script:
+#   `chmod +x pre-commit`    
+# ------------------------------------------------------------------
+ 
+
+# Check if gitleaks is installed and install if not. 
+install_gitleaks() {
+    if ! command -v gitleaks &> /dev/null; then
+        echo "gitleaks is not installed. Try installing..."
+
+        # Identify the OS
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            # ForLinux
+            curl -sSfL https://install.goreleaser.com/github.com/zricethezav/gitleaks.sh | sh
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            # For macOS
+            brew install gitleaks
+        else
+            echo "This OS is not supported"
+            exit 1
+        fi
+    fi
+}
+
+# Check if gitleaks enable in git config
+enable_config=$(git config --get hooks.gitleaks.enable)
+
+if [ "$enable_config" = "true" ]; then
+    echo -e "\033[1;34mRunning Git Pre-Commit Hook...\033[0m"
+    echo "gitleaks is enabled. Starting check..."
+     
+    # install gitleaks if need
+    install_gitleaks
+    
+    gitleaks protect -v --staged --redact -v --report-path ./gitleaks-report.json
+    # gitleaks detect --no-git --redact -v --report-path ../gitleaks-report.json && \              ## check all files in repo
+    # gitleaks detect --redact -v --report-path ../gitleaks-report.json #--log-opts=HEAD~1^..HEAD  ## check last commit
+    gitleaks_exit_code=$?
+
+    # If gitleaks found secret stop commit
+    if [ $gitleaks_exit_code -ne 0 ]; then
+        echo "gitleaks found secret. Commit aborted."
+        exit $gitleaks_exit_code
+    fi
+else
+    echo "gitleaks is disabled. Skipping."
+fi
+
+exit 0
