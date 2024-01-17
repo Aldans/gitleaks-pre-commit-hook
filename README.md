@@ -1,4 +1,8 @@
 ### Git Pre-Commit Hook check sensitive data in local repo
+version: v0.8.1
+
+**Description:**
+
 For checking use 'Gitleaks' https://github.com/gitleaks/gitleaks 
 
 The script will automatically check the operating system (Linux or macOS) and install GitLaks if it is not already installed.
